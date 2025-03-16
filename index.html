@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guess the Song</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Home Screen -->
+        <div id="home-screen" class="screen active">
+            <div class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-music">
+                    <path d="M9 18V5l12-2v13"></path>
+                    <circle cx="6" cy="18" r="3"></circle>
+                    <circle cx="18" cy="16" r="3"></circle>
+                </svg>
+            </div>
+            <div class="card">
+                <h1 class="title">Guess the Song</h1>
+                <div class="form-group">
+                    <label for="room-code-input">Room Code</label>
+                    <input type="text" id="room-code-input" placeholder="Enter room code">
+                </div>
+                <button id="create-room-btn" class="btn">Create New Room</button>
+                <div class="actions">
+                    <button id="join-room-btn" class="btn btn-secondary">Join Room</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="screen">
+            <div class="card">
+                <div class="room-code">Room: <span id="current-room-code">ABC123</span></div>
+                <h2 class="subtitle">Guess the Song</h2>
+                
+                <!-- Host Controls (only visible to room creator) -->
+                <div id="host-controls">
+                    <div class="form-group">
+                        <label for="song-input">Enter Song Name</label>
+                        <input type="text" id="song-input" placeholder="Enter song name">
+                    </div>
+                    <button id="play-song-btn" class="btn">Play Song</button>
+                </div>
+                
+                <!-- Player Controls -->
+                <div id="player-controls">
+                    <div class="form-group">
+                        <label for="guess-input">Your Guess</label>
+                        <input type="text" id="guess-input" placeholder="Enter your guess">
+                    </div>
+                    <button id="submit-guess-btn" class="btn">Submit Guess</button>
+                </div>
+                
+                <!-- Result Display -->
+                <div id="result" class="result" style="display: none;"></div>
+                
+                <!-- Score Display -->
+                <div class="score">Score: <span id="score">0</span></div>
+                
+                <div class="actions">
+                    <button id="next-round-btn" class="btn" style="display: none;">Next Round</button>
+                    <button id="leave-room-btn" class="btn btn-secondary">Leave Room</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+
+    <!-- Add Socket.IO library -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+  <!-- Add your custom JavaScript code -->
+  <script>
+    const socket = io('https://guess-the-song-backend.onrender.com'); // Replace with your Render backend URL
+
+    const homeDiv = document.getElementById('home');
+    const gameDiv = document.getElementById('game');
+    const playBtn = document.getElementById('playBtn');
+    const joinBtn = document.getElementById('joinBtn');
+    const roomCodeInput = document.getElementById('roomCodeInput');
+    const roomCodeDisplay = document.getElementById('roomCodeDisplay');
+    const turnDiv = document.getElementById('turn');
+    const songInput = document.getElementById('songInput');
+    const submitSongBtn = document.getElementById('submitSongBtn');
+    const audioPlayer = document.getElementById('audioPlayer');
+    const guessInput = document.getElementById('guessInput');
+    const submitGuessBtn = document.getElementById('submitGuessBtn');
+    const resultDiv = document.getElementById('result');
+    const scoreDiv = document.getElementById('score');
+
+    let roomCode;
+    let isMyTurn = false;
+
+    // Play button: Create a room
+    playBtn.addEventListener('click', () => {
+      socket.emit('createRoom');
+    });
+
+    // Join button: Join a room
+    joinBtn.addEventListener('click', () => {
+      roomCode = roomCodeInput.value;
+      socket.emit('joinRoom', roomCode);
+    });
+
+    // Submit song button
+    submitSongBtn.addEventListener('click', () => {
+      const songName = songInput.value;
+      socket.emit('submitSong', { roomCode, songName });
+    });
+
+    // Submit guess button
+    submitGuessBtn.addEventListener('click', () => {
+      const guess = guessInput.value;
+      socket.emit('submitGuess', { roomCode, guess });
+    });
+
+    // Socket events
+    socket.on('roomCreated', (code) => {
+      roomCode = code;
+      roomCodeDisplay.textContent = `Room Code: ${roomCode}`;
+      homeDiv.classList.add('hidden');
+      gameDiv.classList.remove('hidden');
+      turnDiv.textContent = 'Your turn!';
+      isMyTurn = true;
+    });
+
+    socket.on('joinedRoom', (code) => {
+      roomCode = code;
+      roomCodeDisplay.textContent = `Room Code: ${roomCode}`;
+      homeDiv.classList.add('hidden');
+      gameDiv.classList.remove('hidden');
+      turnDiv.textContent = "Waiting for the other player's turn...";
+      isMyTurn = false;
+    });
+
+    socket.on('playSong', (songUrl) => {
+      audioPlayer.src = songUrl;
+      audioPlayer.play();
+    });
+
+    socket.on('guessResult', (result) => {
+      resultDiv.textContent = result;
+    });
+
+    socket.on('updateScore', (score) => {
+      scoreDiv.textContent = `Score: ${score}`;
+    });
+
+    socket.on('switchTurn', () => {
+      isMyTurn = !isMyTurn;
+      turnDiv.textContent = isMyTurn ? 'Your turn!' : "Waiting for the other player's turn...";
+    });
+  </script>
+</body>
+</html>
